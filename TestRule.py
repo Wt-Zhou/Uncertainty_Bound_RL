@@ -52,7 +52,9 @@ if __name__ == '__main__':
         print('Restarting episode')
 
         # Reset environment and get initial state
+
         obs = env.reset()
+
         episode_reward = 0
 
         done = False
@@ -61,6 +63,7 @@ if __name__ == '__main__':
 
         # Loop over steps
         while True:
+
             obs = np.array(obs)
             dynamic_map.update_map_from_obs(obs, env)
             rule_trajectory = trajectory_planner.trajectory_update(dynamic_map)
@@ -76,10 +79,9 @@ if __name__ == '__main__':
             obs = new_obs
             episode_reward += reward
 
-            
 
             if done:
-                trajectory_planner.clear_buff()
+                trajectory_planner.clear_buff(clean_csp=False)
                 task_time += 1
                 if reward > 0:
                     pass_time += 1

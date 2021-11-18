@@ -38,16 +38,16 @@ global start_point
 start_point = Transform()
 start_point.location.x = 115.6
 start_point.location.y = -8.75
-start_point.location.z = 1
+start_point.location.z = 12
 start_point.rotation.pitch = 0
-start_point.rotation.yaw = -90
+start_point.rotation.yaw = -220
 start_point.rotation.roll = 0
 
 
 global goal_point
 goal_point = Transform()
-goal_point.location.x = -32
-goal_point.location.y = 12
+goal_point.location.x = 10
+goal_point.location.y = 6
 goal_point.location.z = 0
 goal_point.rotation.pitch = 0
 goal_point.rotation.yaw = 0 
@@ -64,7 +64,7 @@ class CarEnv_04_Ramp_Merge:
 
         if self.world.get_map().name != 'Town04':
             self.world = self.client.load_world('Town04')
-        self.world.set_weather(carla.WeatherParameters(cloudiness=0, precipitation=10.0, sun_altitude_angle=90.0))
+        self.world.set_weather(carla.WeatherParameters(cloudiness=20, precipitation=10.0, sun_altitude_angle=50.0))
         settings = self.world.get_settings()
         settings.no_rendering_mode = False
         settings.fixed_delta_seconds = 0.2 # Warning: When change simulator, the delta_t in controller should also be change.
@@ -102,7 +102,7 @@ class CarEnv_04_Ramp_Merge:
         global start_point
         self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
         if self.ego_vehicle_bp.has_attribute('color'):
-            color = '0,0,0'
+            color = '255,0,0'
             self.ego_vehicle_bp.set_attribute('color', color)
             self.ego_vehicle_bp.set_attribute('role_name', "ego_vehicle")
         self.ego_vehicle = self.world.spawn_actor(self.ego_vehicle_bp, start_point)
@@ -111,6 +111,15 @@ class CarEnv_04_Ramp_Merge:
         self.ego_collision_sensor.listen(lambda event: self.ego_vehicle_collision(event))
         self.ego_vehicle_collision_sign = False
         self.stuck_time = 0
+        
+        self.env_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        if self.env_vehicle_bp.has_attribute('color'):
+            color = '0,0,255'
+            self.env_vehicle_bp.set_attribute('color', color)
+        if self.env_vehicle_bp.has_attribute('driver_id'):
+            driver_id = random.choice(self.env_vehicle_bp.get_attribute('driver_id').recommended_values)
+            self.env_vehicle_bp.set_attribute('driver_id', driver_id)
+        self.env_vehicle_bp.set_attribute('role_name', 'autopilot')
 
         # Control Env Vehicle
         self.has_set = np.zeros(1000000)
@@ -205,21 +214,20 @@ class CarEnv_04_Ramp_Merge:
         ego_vehicle_state.vy = ego_vehicle_state.v * math.sin(ego_vehicle_state.yaw)
 
         # Ego state
-        ego_ffstate = get_frenet_state(ego_vehicle_state, self.ref_path_array, self.ref_path_tangets)
-        state[0] = ego_vehicle_state.x #ego_ffstate.s 
-        state[1] = ego_vehicle_state.y #-ego_ffstate.d
-        state[2] = ego_vehicle_state.vx #ego_ffstate.vs
-        state[3] = ego_vehicle_state.vy #ego_ffstate.vd
+        state[0] = ego_vehicle_state.x 
+        state[1] = ego_vehicle_state.y 
+        state[2] = ego_vehicle_state.vx 
+        state[3] = ego_vehicle_state.vy 
 
         # Obs state
         closest_obs = []
-        closest_obs = self.found_closest_obstacles_t_intersection(ego_ffstate)
+        closest_obs = self.found_closest_obstacles_t_intersection()
         i = 0
         for obs in closest_obs: 
             if i < OBSTACLES_CONSIDERED:
                 if obs[0] != 0:
-                    state[(i+1)*4+0] = obs[0] #- ego_ffstate.s 
-                    state[(i+1)*4+1] = obs[1] #+ ego_ffstate.d
+                    state[(i+1)*4+0] = obs[0] 
+                    state[(i+1)*4+1] = obs[1] 
                     state[(i+1)*4+2] = obs[2]
                     state[(i+1)*4+3] = obs[3]
                 i = i+1
@@ -228,7 +236,7 @@ class CarEnv_04_Ramp_Merge:
         
         return state
 
-    def found_closest_obstacles_t_intersection(self, ego_ffstate):
+    def found_closest_obstacles_ramp(self):
         obs_tuples = []
         for obs in self.world.get_actors().filter('vehicle*'): 
             # Calculate distance
@@ -379,28 +387,28 @@ class CarEnv_04_Ramp_Merge:
     def init_case(self):
         self.case_list = []
 
-        # one vehicle from left
+        # one vehicle front
         for i in range(0,10):
             spawn_vehicles = []
             transform = Transform()
-            transform.location.x = 92 + i * 5# Go forward >=146
-            transform.location.y = 191.8
-            transform.location.z = 1
+            transform.location.x = 92 - i * 5
+            transform.location.y = 6
+            transform.location.z = 12
             transform.rotation.pitch = 0
-            transform.rotation.yaw = 0
+            transform.rotation.yaw = -180
             transform.rotation.roll = 0
             spawn_vehicles.append(transform)
             self.case_list.append(spawn_vehicles)
 
-        # one vehicle from right
+        # one vehicle behind
         for i in range(0,10):
             spawn_vehicles = []
             transform = Transform()
-            transform.location.x = 127 + i * 3 # 137 < Turn left <146
-            transform.location.y = 188
-            transform.location.z = 1
+            transform.location.x = 88 + i * 5 
+            transform.location.y = 6
+            transform.location.z = 12
             transform.rotation.pitch = 0
-            transform.rotation.yaw = 180
+            transform.rotation.yaw = -180
             transform.rotation.roll = 0
             spawn_vehicles.append(transform)
             self.case_list.append(spawn_vehicles)
@@ -410,19 +418,19 @@ class CarEnv_04_Ramp_Merge:
             for j in range(0,10):
                 spawn_vehicles = []
                 transform = Transform()
-                transform.location.x = 125 + i * 3 # 137 < Turn left <146
-                transform.location.y = 188
-                transform.location.z = 1
+                transform.location.x = 92 - i * 5 
+                transform.location.y = 6
+                transform.location.z = 12
                 transform.rotation.pitch = 0
-                transform.rotation.yaw = 180
+                transform.rotation.yaw = -180
                 transform.rotation.roll = 0
                 spawn_vehicles.append(transform)
                 transform = Transform()
-                transform.location.x = 92 + j * 5# Go forward >=146
-                transform.location.y = 191.8
-                transform.location.z = 1
+                transform.location.x = 88 + j * 5
+                transform.location.y = 6
+                transform.location.z = 12
                 transform.rotation.pitch = 0
-                transform.rotation.yaw = 0
+                transform.rotation.yaw = -180
                 transform.rotation.roll = 0
                 spawn_vehicles.append(transform)
                 self.case_list.append(spawn_vehicles)
@@ -430,83 +438,31 @@ class CarEnv_04_Ramp_Merge:
         # 3 vehicles
         for i in range(0,10):
             for j in range(0,10):
-                for k in range (8,19,2):
+                for k in range (0,10):
                     spawn_vehicles = []
-                    transform = Transform()
-                    transform.location.x = 125 + i * 3 # 137 < Turn left <146
-                    transform.location.y = 188
-                    transform.location.z = 1
+                    transform.location.x = 92 - i * 5 
+                    transform.location.y = 6
+                    transform.location.z = 12
                     transform.rotation.pitch = 0
-                    transform.rotation.yaw = 180
+                    transform.rotation.yaw = -180
                     transform.rotation.roll = 0
                     spawn_vehicles.append(transform)
-
+                    
                     transform = Transform()
-                    transform.location.x = 125 + i * 3 + k # 137 < Turn left <146
-                    transform.location.y = 188
-                    transform.location.z = 1
+                    transform.location.x = 88 + j * 5
+                    transform.location.y = 6
+                    transform.location.z = 12
                     transform.rotation.pitch = 0
-                    transform.rotation.yaw = 180
+                    transform.rotation.yaw = -180
                     transform.rotation.roll = 0
                     spawn_vehicles.append(transform)
-
+                    
                     transform = Transform()
-                    transform.location.x = 92 + j * 5# Go forward >=146
-                    transform.location.y = 191.8
-                    transform.location.z = 1
+                    transform.location.x = 50 + j * 5
+                    transform.location.y = 10
+                    transform.location.z = 12
                     transform.rotation.pitch = 0
-                    transform.rotation.yaw = 0
-                    transform.rotation.roll = 0
-                    spawn_vehicles.append(transform)
-                    self.case_list.append(spawn_vehicles)
-
-        # more vehicles
-        for i in range(0,10):
-            for j in range(0,10):
-                for k in range (8,19,2):
-                    spawn_vehicles = []
-                    transform = Transform()
-                    transform.location.x = 125 + i * 3 # 137 < Turn left <146
-                    transform.location.y = 188
-                    transform.location.z = 1
-                    transform.rotation.pitch = 0
-                    transform.rotation.yaw = 180
-                    transform.rotation.roll = 0
-                    spawn_vehicles.append(transform)
-
-                    transform = Transform()
-                    transform.location.x = 125 + i * 3 + k # 137 < Turn left <146
-                    transform.location.y = 188
-                    transform.location.z = 1
-                    transform.rotation.pitch = 0
-                    transform.rotation.yaw = 180
-                    transform.rotation.roll = 0
-                    spawn_vehicles.append(transform)
-
-                    transform = Transform()
-                    transform.location.x = 125 + i * 3 + k + 40 # 137 < Turn left <146
-                    transform.location.y = 188
-                    transform.location.z = 1
-                    transform.rotation.pitch = 0
-                    transform.rotation.yaw = 180
-                    transform.rotation.roll = 0
-                    spawn_vehicles.append(transform)
-
-                    transform = Transform()
-                    transform.location.x = 92 + j * 5# Go forward >=146
-                    transform.location.y = 191.8
-                    transform.location.z = 1
-                    transform.rotation.pitch = 0
-                    transform.rotation.yaw = 0
-                    transform.rotation.roll = 0
-                    spawn_vehicles.append(transform)
-
-                    transform = Transform()
-                    transform.location.x = 92 + j * 5 + k + 20# Go forward >=146
-                    transform.location.y = 191.8
-                    transform.location.z = 1
-                    transform.rotation.pitch = 0
-                    transform.rotation.yaw = 0
+                    transform.rotation.yaw = -180
                     transform.rotation.roll = 0
                     spawn_vehicles.append(transform)
                     self.case_list.append(spawn_vehicles)
@@ -516,39 +472,24 @@ class CarEnv_04_Ramp_Merge:
     def spawn_fixed_veh(self):
         if self.case_id >= len(self.case_list):
             self.case_id = 1
-        # actor_list = self.world.get_actors()
-        # vehicle_list = actor_list.filter("*vehicle*")
-        # SpawnActor = carla.command.SpawnActor
-        # SetAutopilot = carla.command.SetAutopilot
-        # FutureActor = carla.command.FutureActor
-        # synchronous_master = True
+        actor_list = self.world.get_actors()
+        vehicle_list = actor_list.filter("*vehicle*")
+        SpawnActor = carla.command.SpawnActor
+        SetAutopilot = carla.command.SetAutopilot
+        FutureActor = carla.command.FutureActor
+        synchronous_master = True
 
+        for vehicle in vehicle_list:
+            if vehicle.attributes['role_name'] != "ego_vehicle" :
+                vehicle.destroy()
 
+        batch = []
+        print("Case_id",self.case_id)
 
-        # for vehicle in vehicle_list:
-        #     if vehicle.attributes['role_name'] != "ego_vehicle" :
-        #         vehicle.destroy()
-
-        # batch = []
-        # print("Case_id",self.case_id)
-
-        # for transform in self.case_list[self.case_id - 1]:
-        #     blueprints_ori = self.world.get_blueprint_library().filter('vehicle.*')
-        #     spawn_points_ori = self.world.get_map().get_spawn_points()
-        #     blueprint = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
-            
-        #     if blueprint.has_attribute('color'):
-        #         color = '255,0,0'#random.choice(blueprint.get_attribute('color').recommended_values)
-        #         # print("DEBUG",blueprint.get_attribute('color').recommended_values)
-        #         blueprint.set_attribute('color', color)
-        #         blueprint.set_attribute('color', color)
-        #     if blueprint.has_attribute('driver_id'):
-        #         driver_id = random.choice(blueprint.get_attribute('driver_id').recommended_values)
-        #         blueprint.set_attribute('driver_id', driver_id)
-        #     blueprint.set_attribute('role_name', 'autopilot')
-        #     batch.append(SpawnActor(blueprint, transform).then(SetAutopilot(FutureActor, True)))
-            
-        # self.client.apply_batch_sync(batch, synchronous_master)
+        for transform in self.case_list[self.case_id - 1]:
+            batch.append(SpawnActor(self.env_vehicle_bp, transform).then(SetAutopilot(FutureActor, True)))
+    
+        self.client.apply_batch_sync(batch, synchronous_master)
 
         
 

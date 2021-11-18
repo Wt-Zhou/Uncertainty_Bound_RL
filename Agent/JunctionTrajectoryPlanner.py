@@ -56,7 +56,7 @@ class JunctionTrajectoryPlanner(object):
         self.dist_to_end = [0,0,0,0,0]
         self.target_line = target_line
     
-    def clear_buff(self):
+    def clear_buff(self, clean_csp=True):
 
         if self.csp is None:
             return
@@ -66,14 +66,15 @@ class JunctionTrajectoryPlanner(object):
         self.last_trajectory_array_rule = np.c_[0, 0]
         self.last_trajectory_rule = Frenet_path()
         self.reference_path = None
-        self.csp = None
+        if clean_csp:
+            self.csp = None
     
     def build_frenet_path(self, dynamic_map, clean_current_csp = False):
 
         if self.csp is None or clean_current_csp:
             self.reference_path = dynamic_map.lanes[0].central_path # When dynamic map has one ref path in lane
             ref_path_ori = convert_path_to_ndarray(self.reference_path)
-            self.ref_path = dense_polyline2d(ref_path_ori, 2)
+            self.ref_path = dense_polyline2d(ref_path_ori, 2.5)
             self.ref_path_tangets = np.zeros(len(self.ref_path))
 
             Frenetrefx = self.ref_path[:,0]
