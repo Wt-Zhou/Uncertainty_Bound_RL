@@ -26,6 +26,7 @@ from collections import deque
 from gym import core, error, spaces, utils
 from gym.utils import seeding
 from TestScenario import CarEnv_02_Intersection, CarEnv_02_Intersection_fixed
+from TestScenario_new import CarEnv_04_Ramp_Merge
 from Agent.JunctionTrajectoryPlanner import JunctionTrajectoryPlanner
 from Agent.controller import Controller
 from Agent.dynamic_map import DynamicMap
@@ -34,7 +35,7 @@ EPISODES=2642
 if __name__ == '__main__':
 
     # Create environment
-    env = CarEnv_02_Intersection_fixed()
+    env = CarEnv_04_Ramp_Merge()
 
     # Create Agent
     trajectory_planner = JunctionTrajectoryPlanner()
