@@ -90,12 +90,8 @@ class CarEnv_04_Ramp_Merge:
 
         # RL settingss
         self.action_space = spaces.Discrete(8) # len(fplist + 2) 0 for rule, 1 for brake 
-        self.low  = np.array([133,  198, -2, -2,125, 189, -1, -1, 128, 195, -2, -1, 125, 195, -2,-1], dtype=np.float64)
-        self.high = np.array([137,  203, 1, 1, 130, 194,  2,  1,  132,  200,  1,  2,  130,  200 , 1, 2], dtype=np.float64)    
-        # self.low  = np.array([130,  190, -6, -6,120, 189, -1, -1, 120, 185, -5, -1, 120, 185, -5,-1], dtype=np.float64)
-        # self.high = np.array([150,  220, 1, 1, 140, 194,  5,  1,  140,  205,  1,  5,  140,  205 , 1, 5], dtype=np.float64)    
-        # low  = np.array([100,  170, -15, -15,50, 189, -15, -15, 50, 185, -15, -15, 110, 185, -15,-15])
-        # high = np.array([150,  220, 15, 15, 155, 194,  15,  15,  150,  205,  15,  15,  190,  205 , 15, 15])    
+        self.low  = np.array([60,  4, -5, -1,60,  4, -5, -1, 60,  4, -5, -1, 60,  4, -5, -1], dtype=np.float64)
+        self.high = np.array([80,  8, 1, 1, 80,  8, 1, 1,  80,  8, 1, 1,  80,  8, 1, 1], dtype=np.float64)    
         self.observation_space = spaces.Box(self.low, self.high, dtype=np.float32)
 
         # Spawn Ego Vehicle
@@ -200,7 +196,7 @@ class CarEnv_04_Ramp_Merge:
 
     def wrap_state(self):
         # state = [0 for i in range((OBSTACLES_CONSIDERED + 1) * 4)]
-        state  = np.array([100,  220, -15, -15,115, 192, 0, 0, 150, 183, 0, 0, 150, 183, 0,0], dtype=np.float64)
+        state  = np.array([115,  -8, -0, -0,130, -6, 0, 0, 130, -6, 0, 0, 130, -6, 0, 0], dtype=np.float64)
 
         ego_vehicle_state = Vehicle()
         ego_vehicle_state.x = self.ego_vehicle.get_location().x
@@ -221,7 +217,7 @@ class CarEnv_04_Ramp_Merge:
 
         # Obs state
         closest_obs = []
-        closest_obs = self.found_closest_obstacles_t_intersection()
+        closest_obs = self.found_closest_obstacles_ramp()
         i = 0
         for obs in closest_obs: 
             if i < OBSTACLES_CONSIDERED:

@@ -143,7 +143,7 @@ class DQN(object):
                 test_iters = 0
 
                 obs = env.reset()
-                self.trajectory_planner.clear_buff()
+                self.trajectory_planner.clear_buff(clean_csp=False)
 
                 # Test
                 while test_iters < test_steps:
@@ -174,7 +174,7 @@ class DQN(object):
                     obs = new_obs
                     if done:
                         obs = env.reset()
-                        self.trajectory_planner.clear_buff()
+                        self.trajectory_planner.clear_buff(clean_csp=False)
                         test_iters += 1
 
                     # Record Data    
@@ -219,7 +219,7 @@ class DQN(object):
             start_time, start_steps = None, None
 
             obs = env.reset()
-            self.trajectory_planner.clear_buff()
+            self.trajectory_planner.clear_buff(clean_csp=False)
             decision_count = 0
 
             while num_iters < total_timesteps:
@@ -233,16 +233,16 @@ class DQN(object):
                 # Bootstapped Action
                 dqn_q = q_values_dqn(obs[None])
                 optimal_action = np.array(np.where(dqn_q[0]==np.max(dqn_q[0]))[0][0])
-                random_action = random.randint(0,8)
+                random_action = random.randint(0,7)
 
                 if random.uniform(0,1) < 0.2: # epsilon-greddy
                     action = random_action
                 else:
                     action = optimal_action
 
-                print("[Bootstrap DQN]: Obs",obs.tolist())
-                print("[Bootstrap DQN]: Action",action, random_action)
-                print("[Bootstrap DQN]: DQN Q-value",dqn_q)
+                print("[DQN]: Obs",obs.tolist())
+                print("[DQN]: Action",action, random_action)
+                print("[DQN]: DQN Q-value",dqn_q)
 
                 # Control
                 trajectory = self.trajectory_planner.trajectory_update_UBP(action, rule_trajectory)
@@ -259,14 +259,14 @@ class DQN(object):
                 obs = new_obs
                 if done:
                     if save_model == True:
-                        print("[Bootstrap DQN]: Save model")
+                        print("[DQN]: Save model")
                         self.maybe_save_model(savedir, {
                             'replay_buffer': replay_buffer,
                             'num_iters': num_iters,
                         })
                         save_model = False
                     obs = env.reset()
-                    self.trajectory_planner.clear_buff()
+                    self.trajectory_planner.clear_buff(clean_csp=False)
 
                 if (num_iters > args.learning_starts and
                         num_iters % args.learning_freq == 0):
@@ -275,7 +275,7 @@ class DQN(object):
                         # Update rl
                         if replay_buffer.__len__() > args.batch_size:
                             for i in range(args.learning_repeat):
-                                print("[Bootstrap DQN]: Learning")
+                                print("[DQN]: Learning")
                                 experience = replay_buffer.sample(args.batch_size, beta=beta_schedule.value(num_iters), count_train=True)
                                 (obses_t, actions, rewards, obses_tp1, dones, masks, train_time, weights, batch_idxes) = experience
                                 td_errors_dqn, q_t_selected_dqn, q_t_selected_target_dqn, qt_dqn = train_dqn(obses_t, actions, rewards, obses_tp1, dones, masks, weights, learning_rate)
@@ -291,7 +291,7 @@ class DQN(object):
                     
                 # Update target network.
                 if num_iters % args.target_update_freq == 0:
-                    print("[Bootstrap DQN]: Update target network")
+                    print("[DQN]: Update target network")
                     update_target_dqn()
 
 
@@ -302,7 +302,7 @@ class DQN(object):
                 if num_iters >= 0 and num_iters % args.save_freq == 0:
                     save_model = True
 
-            print("[Bootstrap DQN]: Finish Training, Save model")
+            print("[DQN]: Finish Training, Save model")
             self.maybe_save_model(savedir, {
                 'replay_buffer': replay_buffer,
                 'num_iters': num_iters,
@@ -446,7 +446,7 @@ class UBP(object):
                         test_iters = 0
 
                         obs = env.reset()
-                        self.trajectory_planner.clear_buff()
+                        self.trajectory_planner.clear_buff(clean_csp=False)
 
                         # Test
                         while test_iters < test_steps:
@@ -476,7 +476,7 @@ class UBP(object):
                             if done:
                                 self.record_termianl_data(model_step, obs, action, rew, q_values, self.rtree) # before update obs
                                 obs = env.reset()
-                                self.trajectory_planner.clear_buff()
+                                self.trajectory_planner.clear_buff(clean_csp=False)
                                 test_iters += 1
 
                             # Record Data    
@@ -532,7 +532,7 @@ class UBP(object):
                 test_iters = 0
 
                 obs = env.reset()
-                self.trajectory_planner.clear_buff()
+                self.trajectory_planner.clear_buff(clean_csp=False)
 
                 # Test
                 while test_iters < test_steps:
@@ -563,7 +563,7 @@ class UBP(object):
                     obs = new_obs
                     if done:
                         obs = env.reset()
-                        self.trajectory_planner.clear_buff()
+                        self.trajectory_planner.clear_buff(clean_csp=False)
                         test_iters += 1
 
                     # Record Data    
@@ -611,7 +611,7 @@ class UBP(object):
             start_time, start_steps = None, None
 
             obs = env.reset()
-            self.trajectory_planner.clear_buff()
+            self.trajectory_planner.clear_buff(clean_csp=False)
 
             # Main training loop
             random_head = np.random.randint(args.bootstrapped_heads_num)        #Initial head initialisation
@@ -656,7 +656,7 @@ class UBP(object):
                 if done:
                     random_head = np.random.randint(args.bootstrapped_heads_num)
                     obs = env.reset()
-                    self.trajectory_planner.clear_buff()
+                    self.trajectory_planner.clear_buff(clean_csp=False)
 
                 if (num_iters > args.learning_starts and
                         num_iters % args.learning_freq == 0):

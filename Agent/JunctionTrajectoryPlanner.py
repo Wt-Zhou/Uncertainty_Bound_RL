@@ -252,7 +252,7 @@ class JunctionTrajectoryPlanner(object):
             path_tuples.append(one_path)
 
         sorted_fplist = sorted(path_tuples, key=lambda path_tuples: path_tuples[1])
-        
+        # print("How many paths?",len(sorted_fplist))
         self.all_trajectory = sorted_fplist
 
         sorted_fplist = self.check_paths(sorted_fplist)
