@@ -61,15 +61,14 @@ class CarEnv_04_Ramp_Merge:
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(10.0)
         self.world = self.client.get_world()
-
-        if self.world.get_map().name != 'Town04':
+        if self.world.get_map().name != 'Carla/Maps/Town04':
             self.world = self.client.load_world('Town04')
-        self.world.set_weather(carla.WeatherParameters(cloudiness=20, precipitation=10.0, sun_altitude_angle=50.0))
+        self.world.set_weather(carla.WeatherParameters(cloudiness=50, precipitation=10.0, sun_altitude_angle=30.0))
         settings = self.world.get_settings()
-        settings.no_rendering_mode = False
-        settings.fixed_delta_seconds = 0.2 # Warning: When change simulator, the delta_t in controller should also be change.
+        settings.no_rendering_mode = True
+        settings.fixed_delta_seconds = 0.1 # Warning: When change simulator, the delta_t in controller should also be change.
         settings.substepping = True
-        settings.max_substep_delta_time = 0.02  # fixed_delta_seconds <= max_substep_delta_time * max_substeps
+        settings.max_substep_delta_time = 0.01  # fixed_delta_seconds <= max_substep_delta_time * max_substeps
         settings.max_substeps = 10
         settings.synchronous_mode = True
         self.world.apply_settings(settings)
@@ -96,7 +95,8 @@ class CarEnv_04_Ramp_Merge:
 
         # Spawn Ego Vehicle
         global start_point
-        self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        # self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes.coupe_2020'))
         if self.ego_vehicle_bp.has_attribute('color'):
             color = '255,0,0'
             self.ego_vehicle_bp.set_attribute('color', color)
@@ -108,7 +108,8 @@ class CarEnv_04_Ramp_Merge:
         self.ego_vehicle_collision_sign = False
         self.stuck_time = 0
         
-        self.env_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        # self.env_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        self.env_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes.coupe_2020'))
         if self.env_vehicle_bp.has_attribute('color'):
             color = '0,0,255'
             self.env_vehicle_bp.set_attribute('color', color)
@@ -149,8 +150,10 @@ class CarEnv_04_Ramp_Merge:
                 goal.location.z))
         
         dao = GlobalRoutePlannerDAO(self.world.get_map(), 1)
-        grp = GlobalRoutePlanner(dao)
-        grp.setup()
+        # grp = GlobalRoutePlanner(dao) # Carla 0911
+        # grp.setup()
+
+        grp = GlobalRoutePlanner(self.world.get_map(), sampling_resolution=1) # Carla 0913
         current_route = grp.trace_route(carla.Location(start.location.x,
                                                 start.location.y,
                                                 start.location.z),
@@ -172,16 +175,16 @@ class CarEnv_04_Ramp_Merge:
         self.ref_path_array = dense_polyline2d(ref_path_ori, 2)
         self.ref_path_tangets = np.zeros(len(self.ref_path_array))
 
-    def ego_vehicle_stuck(self, stay_thres = 5):        
+    def ego_vehicle_stuck(self, stay_thres = 10):        
         ego_vehicle_velocity = math.sqrt(self.ego_vehicle.get_velocity().x ** 2 + self.ego_vehicle.get_velocity().y ** 2 + self.ego_vehicle.get_velocity().z ** 2)
-        if ego_vehicle_velocity < 0.1:
-            pass
+        if ego_vehicle_velocity > 0.1:
+            return False
         else:
             self.stuck_time = time.time()
 
         if time.time() - self.stuck_time > stay_thres:
             return True
-        return False
+        
 
     def ego_vehicle_pass(self):
         global goal_point
@@ -306,14 +309,13 @@ class CarEnv_04_Ramp_Merge:
         self.collision_num = 0
 
     def reset(self):    
-        # Control Env Elements
-        self.spawn_fixed_veh()
+        
 
         # Ego vehicle
         if self.ego_vehicle is not None:
             self.ego_collision_sensor.destroy()
             self.ego_vehicle.destroy()
-
+        
         global start_point
         self.ego_vehicle = self.world.spawn_actor(self.ego_vehicle_bp, start_point)
 
@@ -321,7 +323,10 @@ class CarEnv_04_Ramp_Merge:
         self.ego_collision_sensor = self.world.spawn_actor(collision_bp, Transform(), self.ego_vehicle, carla.AttachmentType.Rigid)
         self.ego_collision_sensor.listen(lambda event: self.ego_vehicle_collision(event))
         self.ego_vehicle_collision_sign = False
-
+        
+        # Env vehicles
+        self.spawn_fixed_veh()
+        
         self.world.tick() 
 
         # State
@@ -366,17 +371,6 @@ class CarEnv_04_Ramp_Merge:
             reward = -0.0
             done = True
             print("[CARLA]: Stuck!")
-
-
-        actor_list = self.world.get_actors()
-        vehicle_list = actor_list.filter("*vehicle*")
-        for vehicle in vehicle_list:  
-            self.tm.ignore_signs_percentage(vehicle, 100)
-            self.tm.ignore_lights_percentage(vehicle, 100)
-            self.tm.ignore_walkers_percentage(vehicle, 0)
-            self.tm.set_percentage_keep_right_rule(vehicle,100) # it can make the actor go forward, dont know why
-            self.tm.auto_lane_change(vehicle, True)
-            self.tm.distance_to_leading_vehicle(vehicle, 10)
 
         return state, reward, done, None
 
@@ -487,7 +481,14 @@ class CarEnv_04_Ramp_Merge:
     
         self.client.apply_batch_sync(batch, synchronous_master)
 
-        
+        # actor_list = self.world.get_actors()
+        # vehicle_list = actor_list.filter("*vehicle*")
+        # for vehicle in vehicle_list:  
+        #     self.tm.ignore_signs_percentage(vehicle, 100)
+        #     self.tm.ignore_lights_percentage(vehicle, 100)
+        #     self.tm.ignore_walkers_percentage(vehicle, 0)
+            # self.tm.auto_lane_change(vehicle, True)
+            # self.tm.distance_to_leading_vehicle(vehicle, 10)
 
 
 
