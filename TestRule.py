@@ -26,7 +26,7 @@ from collections import deque
 from gym import core, error, spaces, utils
 from gym.utils import seeding
 from TestScenario import CarEnv_02_Intersection, CarEnv_02_Intersection_fixed
-from TestScenario_new import CarEnv_04_Ramp_Merge
+from TestScenario_new import CarEnv_04_Ramp_Merge, CarEnv_03_Ramp_Merge
 from Agent.JunctionTrajectoryPlanner import JunctionTrajectoryPlanner
 from Agent.controller import Controller
 from Agent.dynamic_map import DynamicMap
@@ -35,7 +35,7 @@ EPISODES=2642
 if __name__ == '__main__':
 
     # Create environment
-    env = CarEnv_04_Ramp_Merge()
+    env = CarEnv_03_Ramp_Merge()
 
     # Create Agent
     trajectory_planner = JunctionTrajectoryPlanner()
@@ -70,7 +70,8 @@ if __name__ == '__main__':
 
             for i in range(5):
                 control_action =  controller.get_control(dynamic_map,  rule_trajectory.trajectory, rule_trajectory.desired_speed)
-                action = [control_action.acc, control_action.steering]
+                action = [control_action.acc , control_action.steering]
+                
                 new_obs, reward, done, _ = env.step(action)   
                 dynamic_map.update_map_from_obs(new_obs, env)
                 if done:

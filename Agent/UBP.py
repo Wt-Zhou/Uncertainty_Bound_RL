@@ -11,6 +11,8 @@ import random
 import _thread
 import baselines.common.tf_util as U
 import random
+
+from tqdm import tqdm
 from rtree import index as rindex
 from collections import deque
 from scipy import stats
@@ -209,21 +211,22 @@ class DQN(object):
 
             U.initialize()
             update_target_dqn()
-            num_iters = 0
 
             # Load the model
             state = self.maybe_load_model(savedir, load_model_step)
             if state is not None:
                 num_iters, replay_buffer = state["num_iters"], state["replay_buffer"]
+                load_model_step=load_model_step
+            else:
+                load_model_step = 0
             
             start_time, start_steps = None, None
 
             obs = env.reset()
             self.trajectory_planner.clear_buff(clean_csp=False)
             decision_count = 0
-
-            while num_iters < total_timesteps:
-                num_iters += 1
+            
+            for num_iters in tqdm(range(load_model_step, total_timesteps + 1), unit='steps'):
                 obs = np.array(obs)
 
                 # Rule-based Planner
@@ -242,7 +245,7 @@ class DQN(object):
 
                 print("[DQN]: Obs",obs.tolist())
                 print("[DQN]: Action",action, random_action)
-                print("[DQN]: DQN Q-value",dqn_q)
+                # print("[DQN]: DQN Q-value",dqn_q)
 
                 # Control
                 trajectory = self.trajectory_planner.trajectory_update_UBP(action, rule_trajectory)
@@ -258,13 +261,6 @@ class DQN(object):
                 replay_buffer.add(obs, action, rew, new_obs, float(done), mask)
                 obs = new_obs
                 if done:
-                    if save_model == True:
-                        print("[DQN]: Save model")
-                        self.maybe_save_model(savedir, {
-                            'replay_buffer': replay_buffer,
-                            'num_iters': num_iters,
-                        })
-                        save_model = False
                     obs = env.reset()
                     self.trajectory_planner.clear_buff(clean_csp=False)
 
@@ -294,14 +290,17 @@ class DQN(object):
                     print("[DQN]: Update target network")
                     update_target_dqn()
 
-
-               
                 start_time, start_steps = time.time(), 0
 
                 # Save the model and training state.
                 if num_iters >= 0 and num_iters % args.save_freq == 0:
-                    save_model = True
-
+                    print("[DQN]: Save model")
+                    self.maybe_save_model(savedir, {
+                        'replay_buffer': replay_buffer,
+                        'num_iters': num_iters,
+                    })
+                    save_model = False
+                    
             print("[DQN]: Finish Training, Save model")
             self.maybe_save_model(savedir, {
                 'replay_buffer': replay_buffer,
@@ -605,6 +604,9 @@ class UBP(object):
             state = self.maybe_load_model(savedir, load_model_step)
             if state is not None:
                 num_iters, replay_buffer = state["num_iters"], state["replay_buffer"]
+                load_model_step = load_model_step
+            else:
+                load_model_step = 0
             
             self.rtree.update_with_replay_buffer(replay_buffer)
 
@@ -618,7 +620,8 @@ class UBP(object):
             
             decision_count = 0
 
-            while num_iters <= total_timesteps:
+            for num_iters in tqdm(range(load_model_step, total_timesteps + 1), unit='steps'):
+
                 obs = np.array(obs)
 
                 # Rule-based Planner
@@ -637,8 +640,8 @@ class UBP(object):
             
 
                 print("[Bootstrap DQN]: Obs",obs.tolist())
-                print("[Bootstrap DQN]: Action",action)
-                print("[Bootstrap DQN]: Visited Times",self.rtree.calculate_visited_times(obs,0))
+                # print("[Bootstrap DQN]: Action",action)
+                # print("[Bootstrap DQN]: Visited Times",self.rtree.calculate_visited_times(obs,0))
 
                 # Control
                 trajectory = self.trajectory_planner.trajectory_update_UBP(action, rule_trajectory)
@@ -697,9 +700,6 @@ class UBP(object):
                         'replay_buffer': replay_buffer,
                         'num_iters': num_iters,
                     })
-
-                num_iters += 1
-
 
     def record_test_data(self, model_step, uncertainty_thres, visited_time_thres, env):
         with open("Test_data-{}".format(model_step) + "-{}".format(uncertainty_thres) + "-{}".format(visited_time_thres) + ".txt", 'a') as fw:
@@ -920,8 +920,8 @@ class Bound(object):
 
         mean_rule = np.mean(np.array(q_rule_list))
         var_rule = np.var(np.array(q_rule_list))
-        print("[Bootstrapped Dqn]: Qrule list:",q_rule_list)
-        print("[Bootstrapped Dqn]: Mean and Var:",mean_rule, var_rule)
+        # print("[Bootstrapped Dqn]: Qrule list:",q_rule_list)
+        # print("[Bootstrapped Dqn]: Mean and Var:",mean_rule, var_rule)
 
         # temp
         q_rl_list = []
@@ -933,8 +933,8 @@ class Bound(object):
             meanRL_list.append(np.mean(np.array(q_rl_list)))
             varRL_list.append(np.var(np.array(q_rl_list)))
 
-        print("[Bootstrapped Dqn]: meanRL_list",meanRL_list)
-        print("[Bootstrapped Dqn]: varRL_list",varRL_list)
+        # print("[Bootstrapped Dqn]: meanRL_list",meanRL_list)
+        # print("[Bootstrapped Dqn]: varRL_list",varRL_list)
 
         if var_rule > 0.05 or train_times < 30: #var_thres
             return True
@@ -1138,7 +1138,7 @@ class Bound(object):
         vote_action = np.where(action_vote_list==np.max(action_vote_list))
         mean_rule = np.mean(np.array(q_rule_list))
         var_rule = np.var(np.array(q_rule_list))
-        print("[Bootstrapped Dqn]: Vote_action:",vote_action, action_vote_list)
+        # print("[Bootstrapped Dqn]: Vote_action:",vote_action, action_vote_list)
         # print("[Bootstrapped Dqn]: Qrule list:",q_rule_list)
         # print("[Bootstrapped Dqn]: Mean and Var:",mean_rule, var_rule)
 
@@ -1150,9 +1150,9 @@ class Bound(object):
             q_rl_list = []
             visited_times_list.append(rtree.calculate_visited_times(obs, candidate_action))
 
-        print("[Bootstrapped Dqn]: meanRL_list",meanRL_list)
-        print("[Bootstrapped Dqn]: varRL_list",varRL_list)
-        print("[Bootstrapped Dqn]: visited_times_list",visited_times_list)
+        # print("[Bootstrapped Dqn]: meanRL_list",meanRL_list)
+        # print("[Bootstrapped Dqn]: varRL_list",varRL_list)
+        # print("[Bootstrapped Dqn]: visited_times_list",visited_times_list)
 
         if var_rule > var_thres or visited_times_list[0] < visited_time_thres: #var_thres
             print("[Bootstrapped Dqn]: Running: Rule_action_1")
