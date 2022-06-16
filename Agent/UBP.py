@@ -1,40 +1,34 @@
+import _thread
 import argparse
-
-import numpy as np
 import math
 import os
 import os.path as osp
-import tensorflow as tf
+import random
 import tempfile
 import time
-import random
-import _thread
-import baselines.common.tf_util as U
-import random
-
-from tqdm import tqdm
-from rtree import index as rindex
 from collections import deque
-from scipy import stats
-from baselines import logger
-from baselines import deepq
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.common.misc_util import (
-    boolean_flag,
-    pickle_load,
-    pretty_eta,
-    relatively_safe_pickle_dump,
-    set_global_seeds,
-    RunningAvg,
-    SimpleMonitor
-)
-from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
+
+import baselines.common.tf_util as U
+import numpy as np
+import tensorflow as tf
+from baselines import deepq, logger
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
-from Agent.model import dqn_model, bootstrap_model
-from Agent.JunctionTrajectoryPlanner import JunctionTrajectoryPlanner
+from baselines.common.misc_util import (RunningAvg, SimpleMonitor,
+                                        boolean_flag, pickle_load, pretty_eta,
+                                        relatively_safe_pickle_dump,
+                                        set_global_seeds)
+from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
+from baselines.deepq.replay_buffer import PrioritizedReplayBuffer, ReplayBuffer
+from rtree import index as rindex
+from scipy import stats
+from tqdm import tqdm
+
+from Agent.actions import LaneAction
 from Agent.controller import Controller
 from Agent.dynamic_map import DynamicMap
-from Agent.actions import LaneAction
+from Agent.JunctionTrajectoryPlanner import JunctionTrajectoryPlanner
+from Agent.model import bootstrap_model, dqn_model
+
 
 class DQN(object):
 

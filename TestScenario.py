@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+
 try:
 	sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
 		sys.version_info.major,
@@ -10,24 +11,25 @@ try:
 except IndexError:
 	pass
 
-import carla
-import time
-import numpy as np
 import math
 import random
-import gym
-import cv2
 import threading
-from random import randint
-from carla import Location, Rotation, Transform, Vector3D, VehicleControl
+import time
 from collections import deque
-from tqdm import tqdm
-from gym import core, error, spaces, utils
-from gym.utils import seeding
+from random import randint
+
+import carla
+import cv2
+import gym
+import numpy as np
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from carla import Location, Rotation, Transform, Vector3D, VehicleControl
+from gym import core, error, spaces, utils
+from gym.utils import seeding
+from tqdm import tqdm
 
-from Agent.dynamic_map import Lanepoint, Lane, Vehicle
+from Agent.dynamic_map import Lane, Lanepoint, Vehicle
 from Agent.tools import *
 
 MAP_NAME = 'Town02'
@@ -451,7 +453,7 @@ class CarEnv_02_Intersection:
 
     def step(self, action):
         # Control ego vehicle
-        print("action[0]",action[0])
+        # print("action[0]",action[0])
         throttle = max(0,float(action[0]))  # range [0,1]
         brake = max(0,-float(action[0])) # range [0,1]
         steer = action[1] # range [-1,1]
@@ -496,14 +498,14 @@ class CarEnv_02_Intersection_fixed:
         self.client.set_timeout(10.0)
         self.world = self.client.get_world()
 
-        if self.world.get_map().name != MAP_NAME:
-            self.world = self.client.load_world(MAP_NAME)
-        self.world.set_weather(carla.WeatherParameters(cloudiness=0, precipitation=10.0, sun_altitude_angle=90.0))
+        if self.world.get_map().name != "Carla/Maps/Town02":
+            self.world = self.client.load_world('Town02')
+        self.world.set_weather(carla.WeatherParameters(cloudiness=20, precipitation=10.0, sun_altitude_angle=60.0))
         settings = self.world.get_settings()
         settings.no_rendering_mode = False
-        settings.fixed_delta_seconds = 0.2 # Warning: When change simulator, the delta_t in controller should also be change.
+        settings.fixed_delta_seconds = 0.1 # Warning: When change simulator, the delta_t in controller should also be change.
         settings.substepping = True
-        settings.max_substep_delta_time = 0.02  # fixed_delta_seconds <= max_substep_delta_time * max_substeps
+        settings.max_substep_delta_time = 0.01  # fixed_delta_seconds <= max_substep_delta_time * max_substeps
         settings.max_substeps = 10
         settings.synchronous_mode = True
         self.world.apply_settings(settings)
@@ -534,7 +536,7 @@ class CarEnv_02_Intersection_fixed:
 
         # Spawn Ego Vehicle
         global start_point
-        self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+        self.ego_vehicle_bp = random.choice(self.world.get_blueprint_library().filter('vehicle.lincoln.mkz_2020'))
         if self.ego_vehicle_bp.has_attribute('color'):
             color = '0,0,0'
             self.ego_vehicle_bp.set_attribute('color', color)
@@ -578,8 +580,10 @@ class CarEnv_02_Intersection_fixed:
                 goal.location.z))
         
         dao = GlobalRoutePlannerDAO(self.world.get_map(), 1)
-        grp = GlobalRoutePlanner(dao)
-        grp.setup()
+        grp = GlobalRoutePlanner(self.world.get_map(), sampling_resolution=1) # Carla 0913
+
+        # grp = GlobalRoutePlanner(dao)
+        # grp.setup()
         current_route = grp.trace_route(carla.Location(start.location.x,
                                                 start.location.y,
                                                 start.location.z),
@@ -766,7 +770,9 @@ class CarEnv_02_Intersection_fixed:
 
     def step(self, action):
         # Control ego vehicle
-        print("action[0]",action[0])
+        print("action[0]",action[0], action[1])
+        ego_velocity = math.sqrt(self.ego_vehicle.get_velocity().x ** 2 + self.ego_vehicle.get_velocity().y ** 2 + self.ego_vehicle.get_velocity().z ** 2)
+        print("ego_velocity",ego_velocity)
         throttle = max(0,float(action[0]))  # range [0,1]
         brake = max(0,-float(action[0])) # range [0,1]
         steer = action[1] # range [-1,1]
@@ -804,7 +810,7 @@ class CarEnv_02_Intersection_fixed:
             self.tm.ignore_signs_percentage(vehicle, 100)
             self.tm.ignore_lights_percentage(vehicle, 100)
             self.tm.ignore_walkers_percentage(vehicle, 0)
-            self.tm.set_percentage_keep_right_rule(vehicle,100) # it can make the actor go forward, dont know why
+            # self.tm.set_percentage_keep_right_rule(vehicle,100) # it can make the actor go forward, dont know why
             self.tm.auto_lane_change(vehicle, True)
             self.tm.distance_to_leading_vehicle(vehicle, 10)
 
@@ -970,7 +976,7 @@ class CarEnv_02_Intersection_fixed:
         for transform in self.case_list[self.case_id - 1]:
             blueprints_ori = self.world.get_blueprint_library().filter('vehicle.*')
             spawn_points_ori = self.world.get_map().get_spawn_points()
-            blueprint = random.choice(self.world.get_blueprint_library().filter('vehicle.mercedes-benz.coupe'))
+            blueprint = random.choice(self.world.get_blueprint_library().filter('vehicle.lincoln.mkz_2020'))
             
             if blueprint.has_attribute('color'):
                 color = '255,0,0'#random.choice(blueprint.get_attribute('color').recommended_values)
